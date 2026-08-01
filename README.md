@@ -86,6 +86,7 @@ sequenceDiagram
 | [5](decisions/0005-sops-age-for-secrets.md) | SOPS + age in git | Config and secrets in one commit, no extra service |
 | [6](decisions/0006-self-hosted-mail.md) | Self-hosted mail | Learning decision, not an efficiency one |
 | [7](decisions/0007-docker-user-chain.md) | DOCKER-USER, not ufw | Docker inserts its rules ahead of ufw |
+| [8](decisions/0008-mail-server-manages-its-own-dns.md) | Mail server publishes its own DNS | Hand-written records drift from what the server does |
 
 ## Operations
 
@@ -138,5 +139,27 @@ that `start` and `restart` reuse — mine had no network attached. `down` then
 **Verify against the authority, not the cache.** Reverse DNS came back valid from a stale
 resolver answer. `dig @1.1.1.1` gave the truth.
 
-Two of these were only visible from off the host. Verify enforcement from outside, never
+**Docker's userland proxy hides the client IP.** `docker-proxy` accepts the connection and
+opens a *second* one to the container, so the service sees the bridge gateway
+(`172.18.0.1`) for every client. Found it when a credential restricted to the VPN range
+rejected a connection from inside that range. Worse for mail: SPF validates the connecting
+IP, so once mail flows every sender looks identical. Fix is `"userland-proxy": false`,
+host networking, or PROXY protocol.
+
+**An IP allowlist on a dual-stack host must list both addresses.** I locked an API token
+to the server's IPv4. Every call failed — the host has IPv6 and Linux prefers it for
+egress, so the provider saw an address that wasn't on the list. Fails cleanly with one
+client, but shows up as "works sometimes" anywhere busier.
+
+**Changing a setting is not the same as triggering the action.** Editing which DNS records
+the mail server should publish changed the stored config and scheduled nothing. Toggling
+the management mode off and on queued the job and all seven records appeared in seconds.
+Check that work was *scheduled*, not just that the write returned success.
+
+**`docker compose run` on a stateful service steals the database lock.** I used it to test
+a recovery path; it started a second instance from the same image, which took the RocksDB
+lock, and the real container crash-looped until I removed the stray one. Use a throwaway
+volume, or stop the service first.
+
+Three of these were only visible from off the host. Verify enforcement from outside, never
 from a shell on the machine.

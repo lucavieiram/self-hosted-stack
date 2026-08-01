@@ -42,6 +42,18 @@ Deliverability is ongoing, not setup. Reputation on a fresh IP starts at zero. P
 must be public, so the host's address is discoverable no matter what else I do — this is
 why hiding the origin isn't achievable while I run mail. Host down means bounces.
 
+## Verified
+
+Cutover done in the order above. Inbound from a major provider: TLS 1.3, IPREV pass, SPF
+pass, DKIM pass, DMARC pass, delivered. Outbound to the same provider: MTA-STS policy
+fetched and destination authorised under it, TLS enforced, `250 OK`. Forward-confirmed
+reverse DNS matches.
+
+First message landed in the recipient's spam folder in both directions. That is a
+reputation problem, not a configuration one — a new IP and a new domain have no sending
+history, and no amount of correct DNS substitutes for it. The fix is time, low volume, and
+engagement signals, which is worth knowing before you start rather than after.
+
 ## Notes
 
 Debian ships an MTA enabled by default; it already owns port 25.
