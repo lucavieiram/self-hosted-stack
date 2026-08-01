@@ -26,7 +26,7 @@ Rebuild is: clone, drop in the age key, decrypt. Config and secrets are in the s
 commit and can't drift apart.
 
 age over GPG because it's one line, no keyring, no trust model, no expiry, no subkeys. For
-one operator GPG's flexibility is entirely cost.
+one operator, GPG's flexibility adds nothing.
 
 ## Rejected
 
@@ -35,15 +35,15 @@ one operator GPG's flexibility is entirely cost.
   that needs them.
 - **Cloud KMS.** Makes the stack unrecoverable without that account, and moves key custody
   away from the fundamental I want to understand.
-- **Env files copied by hand.** What I was doing. Works until the rebuild, which is the
-  only moment it matters.
+- **Env files copied by hand.** What I was doing. Works until the rebuild, which is
+  when it matters.
 
 ## Cost
 
 Lose the age key and every `.enc` is unrecoverable. It's in a password manager and an
 offline copy. Rotation is manual — re-encrypt every file — so it happens rarely.
 
-## Gotchas
+## Notes
 
 `sops` finds `.sops.yaml` by walking upward from **the directory of the file being
 encrypted**, not the working directory. Mine was at the repo root, the secrets were at an

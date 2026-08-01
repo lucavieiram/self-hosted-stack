@@ -25,7 +25,7 @@ nothing:
 3. SPF, DKIM, DMARC published and verified from an external resolver
 4. **Then** MX
 
-Rushing step 4 is how people lose mail while debugging.
+Moving MX earlier means debugging against live mail.
 
 ## Rejected
 
@@ -42,7 +42,7 @@ Deliverability is ongoing, not setup. Reputation on a fresh IP starts at zero. P
 must be public, so the host's address is discoverable no matter what else I do — this is
 why hiding the origin isn't achievable while I run mail. Host down means bounces.
 
-## Gotchas
+## Notes
 
 Debian ships an MTA enabled by default; it already owns port 25.
 

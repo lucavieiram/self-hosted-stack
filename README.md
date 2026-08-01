@@ -37,7 +37,7 @@ needs an inbound path to the origin.
 ## Exposure
 
 Two ports open: 443 and 25. Everything else binds to the WireGuard address, so there is
-no listener on the public interface. Publishing is an explicit act, not a default.
+no listener on the public interface.
 
 ```mermaid
 graph LR
@@ -80,12 +80,12 @@ sequenceDiagram
 | # | Decision | Reason |
 |---|---|---|
 | [1](decisions/0001-caddy-over-nginx.md) | Caddy over nginx | DNS-01 out of the box; 15 lines replaced 120 |
-| [2](decisions/0002-two-exposure-planes.md) | Tailnet private, Cloudflare public | Not listening beats filtering |
+| [2](decisions/0002-two-exposure-planes.md) | Tailnet private, Cloudflare public | No listener on the public interface |
 | [3](decisions/0003-compose-over-kubernetes.md) | Compose, not k8s | Control plane alone costs a fifth of RAM, on one node |
 | [4](decisions/0004-restic-with-db-dumps.md) | Dump databases before snapshotting | Copying live DB files backs up corruption |
 | [5](decisions/0005-sops-age-for-secrets.md) | SOPS + age in git | Config and secrets in one commit, no extra service |
 | [6](decisions/0006-self-hosted-mail.md) | Self-hosted mail | Learning decision, not an efficiency one |
-| [7](decisions/0007-docker-user-chain.md) | DOCKER-USER, not ufw | Docker walks straight past ufw |
+| [7](decisions/0007-docker-user-chain.md) | DOCKER-USER, not ufw | Docker inserts its rules ahead of ufw |
 
 ## Operations
 
@@ -110,7 +110,7 @@ One host means no failover. The recovery path is provision, clone, restore, repo
 Offsite copy is not done yet — until it is, snapshots share a failure domain with the
 thing they protect.
 
-## Things that bit me
+## Failures
 
 **Docker publishes past ufw.** `ufw deny 8090` reports success and does nothing — Docker
 inserts its rules ahead of the filter chain. Found it when a metrics agent I believed was

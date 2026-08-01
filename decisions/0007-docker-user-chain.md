@@ -20,7 +20,7 @@ internet.
 Rules go in `DOCKER-USER`, which Docker traverses first and doesn't overwrite.
 
 ```
-# -i eth0 is load-bearing: without it this also matches container egress.
+# Without -i eth0 this also matches container egress.
 iptables -I DOCKER-USER -i eth0 -p tcp -m multiport --dports 80,443 \
          -m set --match-set cf-ranges src -j RETURN
 iptables -A DOCKER-USER -i eth0 -p tcp -m multiport --dports 80,443 -j DROP
@@ -43,7 +43,7 @@ Services that should never be public also bind to the tailnet address instead of
 `ufw status` no longer tells the whole story — the firewall now lives in two places.
 Rules must persist across reboot.
 
-## The mistake inside the fix
+## First version was wrong
 
 First version matched dports 80,443 with no interface. `DOCKER-USER` is in `FORWARD`,
 which carries both directions, so it matched every outbound packet from every container to

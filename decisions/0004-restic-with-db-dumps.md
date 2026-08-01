@@ -8,8 +8,8 @@ Pointing a backup tool at `/var/lib/docker/volumes` produces a backup that resto
 without error and contains a corrupt database.
 
 A live SQLite file copied mid-write can be caught between a page write and the journal
-update. InnoDB has the same problem across its tablespace and redo log. You find out on
-the day you need the restore.
+update. InnoDB has the same problem across its tablespace and redo log. The failure
+surfaces at restore time.
 
 ## Decision
 
@@ -54,4 +54,4 @@ Restored a file from a snapshot into a scratch dir and compared MD5 against live
 Identical.
 
 **Open:** no offsite copy yet. Snapshots on the machine they protect survive a bad deploy,
-not a dead host. That's a single point of failure and it's named here on purpose.
+not a dead host. That is a single point of failure.
