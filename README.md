@@ -14,33 +14,25 @@ Everything below follows from that.
 
 ```mermaid
 graph LR
-    user(["Public visitor"])
-    me(["My devices"])
+    visitor(["Public visitor"])
+    devices(["My devices"])
     cf["Cloudflare<br/>proxy + DNS"]
+    mesh["WireGuard mesh"]
 
     subgraph vps["Single VPS - Debian, 6 GB"]
-        direction TB
         caddy["Caddy<br/>TLS via DNS-01"]
         site["Static site"]
         mail["Stalwart<br/>SMTP - IMAP - JMAP"]
-
-        subgraph private["Tailnet-bound"]
-            files["Seafile"]
-            search["SearXNG"]
-            dockge["Dockge"]
-            beszel["Beszel"]
-        end
-
-        restic["restic<br/>nightly 03:30"]
+        priv["Tailnet only<br/>Seafile - SearXNG<br/>Dockge - Beszel - sshd"]
     end
 
-    user --> cf --> caddy --> site
-    user -->|"SMTP :25"| mail
-    me -.->|"WireGuard"| private
-    me -.->|"ssh, key only"| vps
-    caddy -.->|"DNS-01"| cf
-    restic -.-> offsite[("Offsite object storage")]
+    visitor --> cf --> caddy --> site
+    visitor -->|"SMTP :25"| mail
+    devices --> mesh --> priv
 ```
+
+Caddy gets its certificates from Cloudflare over DNS-01, so the ACME challenge never
+needs an inbound path to the origin.
 
 ## Exposure
 
@@ -48,18 +40,24 @@ Two ports open: 443 and 25. Everything else binds to the WireGuard address, so t
 no listener on the public interface. Publishing is an explicit act, not a default.
 
 ```mermaid
-graph TB
-    subgraph pub["PUBLIC"]
+graph LR
+    net(["Anyone on<br/>the internet"])
+    me(["My devices"])
+
+    subgraph pub["PUBLIC - 2 open ports"]
         p1["Client website :443"]
         p2["Inbound SMTP :25"]
     end
-    subgraph priv["PRIVATE - WireGuard only"]
-        v1["File sync"]
-        v2["Metasearch"]
-        v3["Container panel"]
-        v4["Metrics"]
-        v5["Mail admin"]
+
+    subgraph priv["PRIVATE - no public listener"]
+        v1["File sync - Metasearch<br/>Container panel<br/>Metrics - Mail admin"]
     end
+
+    net --> p1
+    net --> p2
+    me --> p1
+    me --> v1
+
     style pub fill:#3a2a2a,stroke:#a05050,color:#eee
     style priv fill:#2a3a2a,stroke:#50a050,color:#eee
 ```
@@ -71,7 +69,7 @@ sequenceDiagram
     participant C as Caddy
     participant S as Site container
     B->>CF: TLS to site.example.com
-    Note over CF: only Cloudflare ranges may reach origin :443
+    Note over CF: only Cloudflare IPs reach origin
     CF->>C: TLS re-established (Full strict)
     C->>S: reverse_proxy over Docker network
     S-->>B: response
@@ -91,8 +89,19 @@ sequenceDiagram
 
 ## Operations
 
-Backups nightly 03:30. SQLite `.backup` and `mariadb-dump --single-transaction` write to
-a dump dir, then restic snapshots dumps + volumes + config repo. Retention 7d/4w/6m.
+Backups nightly 03:30. Databases are dumped first, then restic snapshots the dumps
+alongside the volumes and the config repo. Retention 7d/4w/6m.
+
+```mermaid
+graph LR
+    sqlite[("SQLite volume")] -->|".backup"| dumps["dump dir"]
+    maria[("MariaDB")] -->|"mariadb-dump<br/>--single-transaction"| dumps
+    vols["Container volumes"] --> snap["restic snapshot<br/>nightly 03:30"]
+    conf["Config repo"] --> snap
+    dumps --> snap
+    snap --> local[("Local repo<br/>7d - 4w - 6m")]
+    snap -.->|"not done yet"| off[("Offsite object storage")]
+```
 
 Restore is tested by pulling a file from a snapshot and diffing checksums against live.
 `restic check` proves the repo is intact, not that the data restores.
