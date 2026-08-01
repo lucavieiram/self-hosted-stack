@@ -1,23 +1,20 @@
-# 5. SOPS and age: secrets encrypted inside the config repo
+# 5. SOPS + age, secrets encrypted in the repo
 
-**Status:** accepted, in production
-**Date:** 2026-07
+**Accepted, in production. 2026-07.**
 
 ## Context
 
-The infrastructure repo holds compose files, the reverse proxy config and the backup
-script. Those need an API token for DNS-01, a database root password, and a restic
-repository password. Two bad options present themselves immediately: commit them in
-plaintext, or keep them out of the repo entirely and rely on remembering to copy the
-right file to the right host during a rebuild.
+The infra repo holds compose files, proxy config and the backup script. Those need a DNS
+API token, a DB root password and the restic repo password.
 
-The second is how disaster recovery quietly fails. The repo restores perfectly and the
-stack will not start, because the one file that was never in it is gone with the host.
+Two obvious options, both bad: commit them plaintext, or keep them out of the repo and
+remember to copy the right file to the right host on rebuild. The second is how DR
+quietly fails — the repo restores perfectly and the stack won't start.
 
 ## Decision
 
-SOPS with age. Secrets are encrypted at rest and committed; the private key lives only on
-the host and in a password manager.
+SOPS with age. Encrypted at rest, committed. Private key lives on the host and in a
+password manager.
 
 ```
 secrets/*
@@ -25,45 +22,36 @@ secrets/*
 !secrets/README.md
 ```
 
-Encrypted `.enc` files are committed, everything else in that directory is ignored. A
-rebuild is: clone the repo, drop in the age key, decrypt. Config and its secrets travel
-together and cannot drift apart, because they are in the same commit.
+Rebuild is: clone, drop in the age key, decrypt. Config and secrets are in the same
+commit and can't drift apart.
 
-age rather than GPG because the key is a single line, there is no keyring, no trust model,
-no expiry, and no subkey confusion. For one operator and one host, GPG's flexibility is
-entirely cost.
+age over GPG because it's one line, no keyring, no trust model, no expiry, no subkeys. For
+one operator GPG's flexibility is entirely cost.
 
 ## Rejected
 
-**A secrets manager (Vault, Infisical).** The correct answer at team scale. Here it is
-another service to run, back up, and unseal — and it introduces a circular dependency,
-because the thing holding my secrets needs to be up before the stack that needs them can
-start.
-
-**Cloud KMS.** Removes the "don't lose the key" problem by moving custody to a provider.
-Rejected because it makes the whole stack unrecoverable without that account, and because
-owning key custody is exactly the fundamental I want to actually understand.
-
-**Environment files kept out of git, copied by hand.** What I was doing. It works right
-up until the rebuild, which is the only moment it matters.
+- **Vault / Infisical.** Correct at team scale. Another service to run, back up and
+  unseal, and it's circular — the thing holding my secrets must be up before the stack
+  that needs them.
+- **Cloud KMS.** Makes the stack unrecoverable without that account, and moves key custody
+  away from the fundamental I want to understand.
+- **Env files copied by hand.** What I was doing. Works until the rebuild, which is the
+  only moment it matters.
 
 ## Cost
 
-The age private key is now a single point of failure: lose it and every `.enc` file is
-unrecoverable. It lives in a password manager and in an offline copy. Key rotation is
-also manual — re-encrypt every file against the new recipient — so it happens rarely,
-which is its own mild risk.
+Lose the age key and every `.enc` is unrecoverable. It's in a password manager and an
+offline copy. Rotation is manual — re-encrypt every file — so it happens rarely.
 
-## Gotcha worth writing down
+## Gotchas
 
-`sops` searches for `.sops.yaml` by walking *upward from the directory of the file being
-encrypted*, not from the working directory. With the config at the repo root and the
-secrets in an unrelated absolute path, no rule matched — and it produced empty output
-files rather than an error. Passing the recipient explicitly with `--age` avoids relying
-on discovery at all.
+`sops` finds `.sops.yaml` by walking upward from **the directory of the file being
+encrypted**, not the working directory. Mine was at the repo root, the secrets were at an
+unrelated absolute path, no rule matched — and it wrote empty files instead of erroring.
+Pass `--age` explicitly and skip discovery.
 
-Dotenv files additionally need `--input-type dotenv --output-type dotenv`, or the
-round-trip silently reshapes them into something the container cannot read.
+Dotenv needs `--input-type dotenv --output-type dotenv` or the round-trip silently
+reshapes it into something the container can't read.
 
-Both failures were silent. Anything that writes secrets should be verified by decrypting
-the result and diffing it against the original, never by checking the exit code.
+Both failures were silent with exit 0. Verify by decrypting and diffing against the
+original.

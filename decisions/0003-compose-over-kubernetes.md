@@ -1,50 +1,40 @@
-# 3. Docker Compose plus a web control panel, not Kubernetes
+# 3. Docker Compose, not Kubernetes
 
-**Status:** accepted, in production
-**Date:** 2026-07
+**Accepted, in production. 2026-07.**
 
 ## Context
 
-Six stacks on one 6 GB host: reverse proxy, client website, mail, file sync, metasearch,
-monitoring. Kubernetes is the thing to put on a CV, and I want infrastructure work as a
-career, so the temptation to run it here was real.
+Six stacks on one 6 GB host: reverse proxy, website, mail, file sync, metasearch,
+monitoring. I want infrastructure work as a career, so the pull toward running k8s here
+was real.
 
 ## Decision
 
-Docker Compose, one directory per stack, plus a small web UI over the compose files so
-starting and stopping a stack does not require SSH.
+Compose, one directory per stack, plus a small web UI over the compose files so
+start/stop doesn't need SSH.
 
-The budget settles it. A k3s control plane idles at roughly 500 MB to 1 GB before a
-single workload of mine is scheduled. On a 6 GB box targeting 4.5 GB idle, that is
-something like a fifth of the budget spent on an orchestrator scheduling onto one node —
-where "which node" is not a question, because there is only one.
+A k3s control plane idles at ~500 MB–1 GB before scheduling any workload of mine. On a
+6 GB box targeting 4.5 GB idle, that's a fifth of the budget to schedule onto one node.
 
-The honest version: Kubernetes solves scheduling across a fleet and self-healing on node
-loss. I have one node. If it dies, no scheduler saves me; a tested restore does. Running
-k8s here would be resume-driven design, and I would be operating a toy cluster rather
-than learning what production Kubernetes actually demands.
+Kubernetes solves scheduling across a fleet and self-healing on node loss. I have one
+node. If it dies no scheduler saves me — a tested restore does. Running k8s here would be
+resume-driven design, and I'd be operating a toy cluster instead of learning the real one.
 
 ## Rejected
 
-**k3s or k0s.** Lightweight distributions genuinely reduce the overhead, but not to zero,
-and they do not change the core point: no amount of orchestration provides high
-availability on a single machine.
-
-**Plain `docker run` with systemd units.** Fewer moving parts still. Rejected because
-compose files are declarative and diff well in git, which matters more to me than
-shaving one dependency.
-
-**Nomad.** Lighter than k8s and a genuinely good fit for this size. Rejected on ecosystem
-gravity: when I do learn a scheduler properly, the hours are better spent on the one the
-industry actually runs.
+- **k3s / k0s.** Lower overhead, not zero. Doesn't change the point: no orchestrator gives
+  you HA on a single machine.
+- **`docker run` + systemd units.** Fewer parts. Compose files diff well in git, which
+  matters more.
+- **Nomad.** Genuinely good fit at this size. Rejected on ecosystem gravity — when I learn
+  a scheduler properly it should be the one the industry runs.
 
 ## Cost
 
-No self-healing beyond `restart: unless-stopped`, no rolling deploys, no declarative
-desired-state reconciliation. Kubernetes experience has to come from somewhere else —
-a deliberate lab where I can break a real multi-node cluster on purpose, not from
-pretending a single VPS is a cluster.
+No self-healing beyond `restart: unless-stopped`, no rolling deploys, no desired-state
+reconciliation. Kubernetes experience has to come from a deliberate multi-node lab I can
+break on purpose, not from pretending one VPS is a cluster.
 
-## Verification
+## Verified
 
 Idle memory holds near the 4.5 GB target with all six stacks up.
