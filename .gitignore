@@ -1,0 +1,9 @@
+# Nothing in this repo should ever hold configuration or credentials — it is
+# reasoning only. These patterns exist so an accidental paste cannot be committed.
+*.env
+*.key
+*.pem
+secrets/
+id_*
+*.sqlite
+*.sql
