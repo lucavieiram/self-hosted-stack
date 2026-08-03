@@ -162,5 +162,21 @@ a recovery path; it started a second instance from the same image, which took th
 lock, and the real container crash-looped until I removed the stray one. Use a throwaway
 volume, or stop the service first.
 
+**"All my visitors are in the United States" was three things, and the obvious one was
+wrong.** Self-hosted analytics behind a CDN showed 100% US traffic for a Brazilian site.
+First theory: the CDN's anycast IPs geolocate to the provider's registered address, so
+the analytics was reading the edge IP instead of the visitor. That theory is true about
+anycast and false here. What killed it was a field that was *empty*: if a geo database
+had resolved the edge IP, it would have filled in a city. Country present, city missing
+meant the country came from the CDN's `cf-ipcountry` header, which is computed from the
+real client. A single tagged test event sent from Brazil came back `BR`, then got
+deleted. The country was never wrong. City and region were blank because location
+headers beyond country are off by default and need a managed transform. And the US
+traffic was real US traffic: scanners. `screen=800x600` and `language=en-US@posix` — a
+POSIX locale string no browser emits — with a spoofed Chrome user-agent that walked
+straight past the user-agent bot check. Three lessons, in order of value: the empty
+field was more diagnostic than the wrong one; one cheap labelled test beat an afternoon
+of theory; and analytics with no bot filter measures the internet, not your audience.
+
 Three of these were only visible from off the host. Verify enforcement from outside, never
 from a shell on the machine.
