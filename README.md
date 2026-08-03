@@ -178,5 +178,13 @@ straight past the user-agent bot check. Three lessons, in order of value: the em
 field was more diagnostic than the wrong one; one cheap labelled test beat an afternoon
 of theory; and analytics with no bot filter measures the internet, not your audience.
 
+**A fix can look like it failed because the row was already written.** Enabling the
+location headers changed nothing on the next test event — same blank city. The headers
+were arriving; the analytics derives a session key from client attributes and writes
+geolocation once, at session creation. My test reused a session created minutes before
+the toggle, so it read a record frozen under the old behaviour. Changing one attribute
+forced a new session and the city appeared immediately. When verifying a change to
+enrichment, make sure the probe creates a new record instead of landing on an old one.
+
 Three of these were only visible from off the host. Verify enforcement from outside, never
 from a shell on the machine.
