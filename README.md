@@ -87,6 +87,7 @@ sequenceDiagram
 | [6](decisions/0006-self-hosted-mail.md) | Self-hosted mail | Learning decision, not an efficiency one |
 | [7](decisions/0007-docker-user-chain.md) | DOCKER-USER, not ufw | Docker inserts its rules ahead of ufw |
 | [8](decisions/0008-mail-server-manages-its-own-dns.md) | Mail server publishes its own DNS | Hand-written records drift from what the server does |
+| [9](decisions/0009-offsite-mirror-to-object-storage.md) | Mirror the repo to object storage | Snapshots on the host they protect share its failure domain |
 
 ## Operations
 
@@ -101,15 +102,15 @@ graph LR
     conf["Config repo"] --> snap
     dumps --> snap
     snap --> local[("Local repo<br/>7d - 4w - 6m")]
-    snap -.->|"not done yet"| off[("Offsite object storage")]
+    local -->|"restic copy"| off[("Offsite object storage<br/>7d - 4w - 6m")]
 ```
 
 Restore is tested by pulling a file from a snapshot and diffing checksums against live.
 `restic check` proves the repo is intact, not that the data restores.
 
 One host means no failover. The recovery path is provision, clone, restore, repoint DNS.
-Offsite copy is not done yet — until it is, snapshots share a failure domain with the
-thing they protect.
+The offsite mirror runs last in the nightly job, so an object storage outage costs the
+remote copy for a night and never the backup itself.
 
 ## Failures
 
